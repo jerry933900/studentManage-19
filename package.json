@@ -1,0 +1,24 @@
+{
+  "name": "studentmanage-19",
+  "version": "1.0.0",
+  "description": "学生管理系统",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.16.3",
+    "svg-captcha": "^1.3.11"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jerry933900/studentManage-19.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jerry933900/studentManage-19/issues"
+  },
+  "homepage": "https://github.com/jerry933900/studentManage-19#readme"
+}
