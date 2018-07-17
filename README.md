@@ -1,2 +1,2 @@
-# studentManage-19
-学生管理系统
+# studentManager_19
+管理系统

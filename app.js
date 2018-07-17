@@ -1,37 +1,32 @@
-// 导入模块.......................
-let express = require("express");
-
-//let-Captcha验证码
-let svgCatcha = require("svg-captcha");
-
-//path模块
-let path = require("path");
-
-//导入 session模块
-let session = require("express-session");
-
-//导入body-parser 格式化表单的数据
-let bodyParser = require("body-parser");
-
-//导入mongodb
-
-const MongoClient = require("mongodb").MongoClient;
-
-//mongo需要用到的配置
-// Connection URL
-const url = 'mongodb://localhost:27017';
-
-// Database Name
-const dbName = 'SZHM19';
+// 导入模块-----------------------------
+// express
+let express = require('express');
+// svg-captcha 验证码
+let svgCaptcha = require('svg-captcha');
+// path模块 内置模块
+let path = require('path');
+// 导入 session模块
+let session = require('express-session');
+// 导入body-parser 格式化表单的数据
+let bodyParser = require('body-parser');
+// 使用自己抽取的工具函数
+let myT = require(path.join(__dirname, 'tools/myT'));
+// 导入自己的首页路由
+let indexRoute = require(path.join(__dirname,'/route/indexRoute'));
 
 
 
-//创建app.................
+
+
+// 创建app-------------------------
 let app = express();
 
-//设置托管静态资源
-app.use(express.static("static"));
-
+// 设置托管静态资源
+app.use(express.static('static'));
+// 使用 session中间件
+// 每个路由的 req对象中 增加 session这个属性
+// 每个路由中 多了一个 可以访问到的 session 属性 可以再他身上 保存 需要共享的属性
+// 
 app.use(session({
     secret: 'keyboard cat love west blue flower hahahaha'
 }))
@@ -42,140 +37,132 @@ app.use(bodyParser.urlencoded({
 }))
 
 
+// 使用 index路由中间件 挂载到 /index这个路径下面
+app.use('/index',indexRoute);
 
-//路由1 get方法 访问登录页 读取登录信息 并返回
+// 导入 art-template
+app.engine('art', require('express-art-template'));
+app.set('views', '/static/views');
 
+
+// 路由--------------------------
+// 路由1
+// 使用get方法 访问登陆页面时 直接读取登录页面 并返回
 app.get('/login', (req, res) => {
-    //直接读取文件 
+    // 打印session
+    // console.log(req.session);
+    // req.session.info = '你来登录页啦';
+    // 直接读取文件并返回
     res.sendFile(path.join(__dirname, 'static/views/login.html'));
 })
 
-
-// 路由2 使用post 提交数据过来 验证用户登录
+// 路由2
+// 使用post 提交数据过来 验证用户登陆
 app.post('/login', (req, res) => {
-    //获取form表单提交的数据
-    //接受数据
-    //比较数据
+    // 获取form表单提交的数据
+    // 接收数据
+    // 比较数据
     let userName = req.body.userName;
-    let useerPass = req.body.useerPass;
-    //验证码 
+    let userPass = req.body.userPass;
+    // 验证码
     let code = req.body.code;
-    //跟 session 中验证码进行比较
+    // 跟 session中的验证码进行比较
     if (code == req.session.captcha) {
-        //设置session
-        req.session.userInfo = {
-            userName,
-            useerPass
-        }
-        //去首页
-        res.redirect("/index");
+        // 对
+        // 继续验证用户名跟密码
+        myT.find('userList',{userName,userPass},(err,docs)=>{
+            if(!err){
+                // 没错说明数据库没有问题
+                // 继续判断用户是否存在
+                if(docs.length==1){
+                    // 保存session
+                    req.session.userInfo = {
+                        userName
+                    }
+                    // 去首页
+                    myT.mess(res,'欢迎回来','/index');
+                }else{
+                    // 用户名或密码错误 没有注册
+                    myT.mess(res,'你是谁,你要干什么','/login');
+                }
+            }
+        })
     } else {
-        // console.log('失败');
-        //打回去
-        // res.redirect('/login');
-        res.setHeader('content-type', 'text/html');
-        res.send('<script>alert("验证码失败");window.location.href="/login"</script>');
-
+        // 错
+        // 机器人(喝醉了,)
+        // 提示用户
+        myT.mess(res,'哥们,验证码不对哦,检查一下吧','/login');
+    
     }
 
-    //res.send('login');
+
+    // res.send('login');
 })
 
-//路由3 生成图片的功能 
-
-app.get('/login/captchaImg', (req, res) => {
-    var captcha = svgCatcha.create();
-    //打印验证码
+// 路由3
+// 生成图片的功能
+// 把这个地址 设置给 登录页的 图片的 src属性
+app.get('/login/captchaImg.png', (req, res) => {
+    // 生成了一张图片 并返回
+    var captcha = svgCaptcha.create();
+    // 打印验证码
     console.log(captcha.text);
-
-    //获取session的值
+    // 获取session中的值
     // console.log(req.session.info);
-    //保存验证码的值 到session 方便后续的使用
-    //为了比较简单 直接转为小写
+    // 保存 验证码的值 到 session 方便后续的使用
+    // 为了比较时简单 直接转为小写
     req.session.captcha = captcha.text.toLocaleLowerCase();
-
     res.type('svg');
     res.status(200).send(captcha.data);
 })
 
-//路由4
-//访问首页index 
-
-app.get('/index', (req, res) => {
-    //有session 欢迎
-    if (req.session.userInfo) {
-        //登录了
-        res.sendFile(path.join(__dirname, 'static/views/index.html'));
-    } else {
-        //没有session 去登录页
-        res.setHeader('content-type', 'text/html');
-        res.send('<script>alert("请登录");window.location.href="/login"</script>')
-    }
-})
-
-//路由5
-//登出操作 
-//删除session 的值即可
+// 路由5
+// 登出操作
+// 删除 session的值即可
 app.get('/logout', (req, res) => {
-    //删除session中的userInfo
+    // 删除session中的 userInfo
     delete req.session.userInfo;
 
-    //去登录页即可
+    // 去登录页即可
     res.redirect('/login');
 })
 
-//路由6
+// 路由6
 // 展示注册页面
 app.get('/register', (req, res) => {
-    //直接读取并返回注册页
+    // 直接读取并返回注册页
     res.sendFile(path.join(__dirname, 'static/views/register.html'));
 })
 
-// 路由 7 
+// 路由7
 app.post('/register', (req, res) => {
+
     // 获取用户数据
     let userName = req.body.userName;
     let userPass = req.body.userPass;
-    console.log(userName);
-    console.log(userPass);
-
-    MongoClient.connect(url, (err, client) => {
-        //连上mongo之后 选择使用的库
-        const db = client.db(dbName);
-        //选择使用的集合
-        let collection = db.collection('userList');
-
-        //查询数据
-        collection.find({
-            userName
-        }).toArray((err, doc) => {
-            console.log(doc);;
-            if (doc.length == 0) {
-                //没有人
-                //新增数据
-                collection.insertOne({
-                    userName,
-                    userPass
-                }, (err, result) => {
-                    console.log(err);
-                    // 注册成功了
-                    res.setHeader('content-type', 'text/html');
-                    res.send("<script>alert('欢迎入坑');window.location='/login'</script>")
-                    // 关闭数据库连接即可
-                    client.close();
-
-                })
-            }
-        })
+    // 使用自己封装的工具函数进行数据库操纵
+    myT.find('userList', {
+        userName
+    }, (err, docs) => {
+        if (docs.length == 0) {
+            // 可以注册
+            myT.insert('userList', {
+                userName,
+                userPass
+            }, (err, result) => {
+                if (!err) {
+                    myT.mess(res, '欢迎加入我们', '/login');
+                }
+            })
+        } else {
+            // 已被注册
+            myT.mess(res, '很遗憾已被使用', '/register');
+        }
     })
-
-
-
-
-
 })
-// 开启监听
+
+
+// 开始监听
 app.listen(8848, '127.0.0.1', () => {
     console.log('success');
-
 })
